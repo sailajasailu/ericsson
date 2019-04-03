@@ -1,0 +1,64 @@
+def MAVEN_HOME
+pipeline {
+    agent { 
+                label 'mac'
+            }
+    stages {
+        
+        stage('Build the Package') {
+            agent { 
+                label 'mac'
+            }
+            steps {
+                sh '/usr/local/bin/mvn -DskipTests=true package'
+            }
+            
+        }
+        stage('Build the Docker Image') {
+            agent { 
+                label 'mac'
+            }
+            steps {
+                sh '/usr/local/bin/docker build -t user-registration-application:1.0 .'
+            }
+        }
+        stage('Launch the Docker Container') {
+            agent { 
+                label 'mac'
+            }
+            steps {
+                sh '/usr/local/bin/docker run -d --name userregistrationapp -p 9080:9080 user-registration-application:1.0'
+            }
+        }
+        stage('Checkout Acceptance Test') {
+            agent { 
+                label 'mac'
+            }
+            steps {
+            	
+            	  git ([url: 'https://github.com/arunstiwari/ericsson-acceptance-testing.git', branch: 'master'])
+            	 
+            	sh '/bin/sleep 120'
+            	 sh '/usr/local/bin/mvn test'
+            	
+            }
+        }
+        stage('Checkout Security Test') {
+            agent { 
+                label 'mac'
+            }
+            steps {
+              
+            	  git ([url: 'https://github.com/arunstiwari/ericsson-acceptance-testing.git', branch: 'master'])
+            	  sh '/usr/local/bin/mvn br.com.softplan.security.zap:zap-maven-plugin:analyze'
+            	
+            }
+            post {
+                always {
+                    sh '/usr/local/bin/docker stop userregistrationapp'
+                    sh '/usr/local/bin/docker rm userregistrationapp'
+                }
+            }
+        }
+    }
+}
